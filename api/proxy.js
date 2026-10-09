@@ -1,21 +1,25 @@
 export default async function handler(req, res) {
-  // Разрешаем только POST-запросы
   if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Only POST requests allowed' });
+    return res.status(405).json({ error: 'Only POST allowed' });
   }
 
-  const token = req.query.token;
-  const method = req.query.method || 'sendMessage';
+  const { token, method = 'sendMessage' } = req.query;
 
   if (!token) {
-    return res.status(400).json({ error: 'Bot token required' });
+    return res.status(400).json({ error: 'Token missing' });
   }
 
   const tgUrl = `https://api.telegram.org/bot${token}/${method}`;
 
   try {
-    // Получаем тело запроса
-    const bodyData = typeof req.body === 'object' ? new URLSearchParams(req.body).toString() : req.body;
+    // Vercel автоматически парсит x-www-form-urlencoded в объект req.body.
+    // Преобразуем его обратно в URLSearchParams для отправки в Telegram:
+    let bodyData;
+    if (typeof req.body === 'object' && req.body !== null) {
+      bodyData = new URLSearchParams(req.body).toString();
+    } else {
+      bodyData = req.body;
+    }
 
     const response = await fetch(tgUrl, {
       method: 'POST',
@@ -28,6 +32,6 @@ export default async function handler(req, res) {
     const data = await response.json();
     return res.status(response.status).json(data);
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ description: err.message, ok: false });
   }
 }
